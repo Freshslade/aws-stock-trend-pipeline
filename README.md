@@ -47,54 +47,96 @@ A near real-time, event-driven stock analytics pipeline on AWS. It ingests live 
   ![Trend Lambda 3](screenshots/lambda%20stock%20trend%20analysis%203.png)
 
 ---
+# 📊 Athena Query Examples & Troubleshooting Notes
 
-🧪 Example Athena Queries
+This companion file contains the advanced SQL queries and real-world debugging notes from the **AWS Stock Trend Pipeline** project.
 
-Top 5 price changes
+---
+
+## ⚙️ Amazon Athena — Example Queries
+
+### 🔹 1. Top 5 Stocks with the Highest Price Change
+```sql
 SELECT symbol, price, previous_close,
        (price - previous_close) AS price_change
 FROM stock_data_table
 ORDER BY price_change DESC
 LIMIT 5;
-
-Average volume
+🔹 2. Average Trading Volume per Stock
 SELECT symbol, AVG(volume) AS avg_volume
 FROM stock_data_table
 GROUP BY symbol;
-Anomalies (>5%)
+🔹 3. Identify Anomalous Stocks (Price Change > 5%)
 SELECT symbol, price, previous_close,
        ROUND(((price - previous_close) / previous_close) * 100, 2) AS change_percent
 FROM stock_data_table
 WHERE ABS(((price - previous_close) / previous_close) * 100) > 5;
-🧰 Troubleshooting Notes (what I had to solve)
 
-This section captures the real bumps I hit and how I fixed them:
+🧩 Troubleshooting Notes
 
-pip not recognized on Windows
+This section highlights specific problems encountered during implementation — and the exact fixes applied.
+These are the moments that built deep AWS fluency.
 
-Root cause: Python not on PATH / Store aliases intercepting python
+🪛 1. pip Not Recognized on Windows
 
-Fix: Disable App execution aliases for python.exe, add Python & Scripts folders to PATH, or clean-reinstall from python.org with “Add to PATH” checked.
+Issue: PowerShell didn’t recognize pip after installing Python.
+Fix:
 
-Running script from wrong directory
+Disabled App Execution Aliases for python.exe.
 
-Error: can't open file 'C:\\Users\\Slade\\stream_stock_data.py'
+Reinstalled Python with “Add to PATH” enabled.
 
-Fix: cd Downloads (where the file lives) or run python "C:\full\path\stream_stock_data.py".
+Confirmed via:
+python --version
+pip --version
 
-Kinesis stream name validation
+🪛 2. Script Failing to Run (can't open file ...)
 
-Error: ValidationException ... Value 'stock-market-stream ' ...
+Issue: Running from the wrong working directory.
+Fix:
+Navigated to the correct project folder:
+cd Downloads
+python stream_stock_data.py
 
-Fix: Removed trailing space in STREAM_NAME → stock-market-stream.
+🪛 3. Kinesis Stream Validation Error
 
-Region mismatch
+Issue: ValidationException ... Value 'stock-market-stream ' (extra space).
+Fix: Removed trailing space in:
+STREAM_NAME = "stock-market-stream"
 
-Error: ResourceNotFoundException ... Stream ... not found
+🪛 4. Region Mismatch
 
-Fix: Ensure both stream and code use us-east-2
-
+Issue: ResourceNotFoundException ... Stream not found
+Fix: Ensured region alignment:
 kinesis_client = boto3.client("kinesis", region_name="us-east-2")
+🪛 5. Lambda Not Writing to DynamoDB or S3
+
+Issue: Hidden Unicode characters (U+200B) broke parsing.
+Fix: Re-typed suspect lines in AWS console editor and redeployed.
+
+🪛 6. S3 NoSuchBucket Error
+
+Issue: Bucket name typo or region mismatch.
+Fix: Used exact bucket name from AWS Console and same region as Lambda:
+S3_BUCKET = "stock-market-data-bucket-33454-slade"
+
+🪛 7. Empty CloudWatch Metrics
+
+Issue: Data appeared missing right after deployment.
+Fix: Waited 2–5 minutes for metrics to propagate and verified records directly in DynamoDB and S3 instead.
+
+🎯 Key Takeaways
+
+Small errors break big systems: even a hidden space or wrong region will stall an entire data flow.
+
+Logs over guessing: CloudWatch Logs are the fastest way to debug AWS pipelines.
+
+Automate sanity checks: always validate resources (names, regions, roles) before deploying Lambda.
+
+Keep cost in mind: using Kinesis On-Demand + 30s delay achieves real-time feel with near-zero spend.
+
+Practice > perfection: each issue reinforced hands-on fluency with IAM, Lambda permissions, and Python AWS SDK behavior.
+
 
 
 
